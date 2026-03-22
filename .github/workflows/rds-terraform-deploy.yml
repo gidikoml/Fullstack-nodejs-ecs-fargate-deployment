@@ -1,4 +1,4 @@
-name: Manual Terraform RDS Deploy
+name: Terraform RDS Deploy
 
 on:
   workflow_dispatch:

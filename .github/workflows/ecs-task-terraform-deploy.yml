@@ -1,4 +1,4 @@
-name: Manual Terraform ECS Task Deploy
+name: Terraform ECS Task Deploy
 
 on:
   workflow_dispatch:
