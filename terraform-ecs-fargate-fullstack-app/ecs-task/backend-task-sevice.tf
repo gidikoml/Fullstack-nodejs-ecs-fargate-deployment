@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "back-task" {
   container_definitions = jsonencode([
     {
       name      = "backend"
-      image     = "713939171080.dkr.ecr.us-east-1.amazonaws.com/backend" #replace you backend images
+      image     = "713939171080.dkr.ecr.us-east-1.amazonaws.com/backend:latest" #replace you backend images
       cpu       = 256
       memory    = 512
       essential = true
@@ -55,7 +55,9 @@ resource "aws_ecs_task_definition" "back-task" {
 
       environment = [
         { name = "DB_HOST", value = "book-rds.c4row02me3au.us-east-1.rds.amazonaws.com" }, // replace your databasw end point
-        { name = "PORT", value = "3306" },
+        { name = "DB_PORT", value = "3306" },
+        { name = "DB_NAME", value = "mydb" },
+        { name = "APP_PORT", value = "80" },
         { name = "DB_USERNAME", value = "admin" },
         { name = "DB_PASSWORD", value = "Yaswanth123reddy" }
       ]
@@ -66,16 +68,17 @@ resource "aws_ecs_task_definition" "back-task" {
 
 # ECS Service
 resource "aws_ecs_service" "back-ecs_service" {
-  name            = "backend-ecs-service"
-  cluster         = aws_ecs_cluster.ecs_cluster.id
-  task_definition = aws_ecs_task_definition.back-task.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+  name                 = "backend-ecs-service"
+  cluster              = aws_ecs_cluster.ecs_cluster.id
+  task_definition      = aws_ecs_task_definition.back-task.arn
+  desired_count        = 1
+  launch_type          = "FARGATE"
+  force_new_deployment = true
 
   network_configuration {
     subnets          = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
     security_groups  = [data.aws_security_group.sg.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
@@ -83,4 +86,6 @@ resource "aws_ecs_service" "back-ecs_service" {
     container_name   = "backend"
     container_port   = 80
   }
+
+  depends_on = [aws_lb_listener.back_listener]
 }

@@ -108,7 +108,7 @@ resource "aws_route_table" "ecs_rt_private" {
 resource "aws_route" "ecs_route_private" {
   route_table_id         = aws_route_table.ecs_rt_private.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_nat_gateway.natgateway.id
+  nat_gateway_id         = aws_nat_gateway.natgateway.id
 }
 
 # Associate Route Table with Subnets

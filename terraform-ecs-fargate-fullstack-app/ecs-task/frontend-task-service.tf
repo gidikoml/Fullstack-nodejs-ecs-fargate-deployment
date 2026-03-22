@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "front_task" {
   container_definitions = jsonencode([
     {
       name      = "frontend"
-      image     = "713939171080.dkr.ecr.us-east-1.amazonaws.com/frontend" # Replace you frontend image
+      image     = "713939171080.dkr.ecr.us-east-1.amazonaws.com/frontend:latest" # Replace you frontend image
       cpu       = 256
       memory    = 512
       essential = true
@@ -58,16 +58,17 @@ resource "aws_ecs_task_definition" "front_task" {
 
 # ECS Service
 resource "aws_ecs_service" "front_service" {
-  name            = "frontend-service"
-  cluster         = aws_ecs_cluster.ecs_cluster.id
-  task_definition = aws_ecs_task_definition.front_task.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+  name                 = "frontend-service"
+  cluster              = aws_ecs_cluster.ecs_cluster.id
+  task_definition      = aws_ecs_task_definition.front_task.arn
+  desired_count        = 1
+  launch_type          = "FARGATE"
+  force_new_deployment = true
 
   network_configuration {
     subnets          = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
     security_groups  = [data.aws_security_group.sg.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
@@ -75,4 +76,6 @@ resource "aws_ecs_service" "front_service" {
     container_name   = "frontend"
     container_port   = 80
   }
+
+  depends_on = [aws_lb_listener.front_listener]
 }
