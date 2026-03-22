@@ -49,7 +49,9 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          npm install 2>&1 | tee ../backend-install.log
+          npm config set registry https://registry.npmjs.org/
+          npm cache clean --force
+          npm install --omit=dev --no-audit 2>&1 | tee ../backend-install.log
 
       - name: Run backend smoke test
         id: run_smoke_test
@@ -67,11 +69,13 @@ jobs:
           docker build -t ${{ env.ECR_REPOSITORY }}:ci -f backend/Dockerfile backend 2>&1 | tee backend-docker-build.log
 
       - name: Configure AWS credentials
+        id: configure_aws_credentials
         if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -122,6 +126,13 @@ jobs:
             echo '```text' >> $GITHUB_STEP_SUMMARY
             tail -n 40 backend-docker-build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.configure_aws_credentials.outcome }}" = "failure" ]; then
+            echo "- Failed step: \`Configure AWS credentials\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Reason: The AWS credentials in GitHub Actions are invalid, expired, or missing the session token." >> $GITHUB_STEP_SUMMARY
+            echo "- Check secrets: \`AWS_ACCESS_KEY_ID\`, \`AWS_SECRET_ACCESS_KEY\`, and if you use temporary credentials also add \`AWS_SESSION_TOKEN\`." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.login-ecr.outcome }}" = "failure" ]; then
+            echo "- Failed step: \`Login to Amazon ECR\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Reason: AWS authentication succeeded partially, but ECR login failed. Check the AWS account, region, and ECR permissions." >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.push_image.outcome }}" = "failure" ]; then
             echo "- Failed step: \`Push backend image to ECR\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
