@@ -49,7 +49,7 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          npm ci 2>&1 | tee ../backend-install.log
+          npm install 2>&1 | tee ../backend-install.log
 
       - name: Run backend smoke test
         id: run_smoke_test
