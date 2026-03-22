@@ -101,6 +101,39 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform destroy -auto-approve -input=false -no-color
 
+      - name: Show managed AWS resources
+        if: always()
+        shell: bash
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          {
+            echo ""
+            echo "## Managed AWS Resources"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if terraform state list > terraform-state-resources.txt 2>/dev/null; then
+            if [ -s terraform-state-resources.txt ]; then
+              echo "Resources currently managed by this Terraform folder:" >> $GITHUB_STEP_SUMMARY
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              cat terraform-state-resources.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No resources are currently managed in this Terraform state." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "Terraform state is not available yet, so no managed resource list could be shown." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if terraform output -no-color > terraform-outputs.txt 2>/dev/null; then
+            if [ -s terraform-outputs.txt ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              cat terraform-outputs.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
       - name: Publish Terraform result summary
         if: always()
         run: |
