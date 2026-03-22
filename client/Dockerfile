@@ -54,6 +54,6 @@ COPY --from=build /app/build /usr/local/apache2/htdocs/
 EXPOSE 80
 
 # Run the script before starting Apache
-CMD ["httpd-foreground"]
+ CMD ["httpd-foreground"]
 
-# CMD ["/entrypoint.sh"]
+#CMD ["/entrypoint.sh"]

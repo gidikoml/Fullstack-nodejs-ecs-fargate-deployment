@@ -1,0 +1,66 @@
+name: Fullstack ECR Flow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  overview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain the full flow
+        run: |
+          echo "Fullstack ECR orchestrator started"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          {
+            echo "# Fullstack ECR Orchestrator"
+            echo ""
+            echo "This workflow is the single entry point for your full image pipeline."
+            echo ""
+            echo "## What it does"
+            echo "- Starts the frontend workflow"
+            echo "- Starts the backend workflow"
+            echo "- Waits for both workflows to finish"
+            echo "- Prints a final status summary"
+            echo ""
+            echo "## Trigger details"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Ref: \`${{ github.ref }}\`"
+            echo "- Repository: \`${{ github.repository }}\`"
+            echo ""
+            echo "## Child workflows"
+            echo "- Frontend workflow file: \`.github/workflows/frontend-ecr.yml\`"
+            echo "- Backend workflow file: \`.github/workflows/backend-ecr.yml\`"
+          } >> $GITHUB_STEP_SUMMARY
+
+  frontend:
+    needs: overview
+    uses: ./.github/workflows/frontend-ecr.yml
+    secrets: inherit
+
+  backend:
+    needs: overview
+    uses: ./.github/workflows/backend-ecr.yml
+    secrets: inherit
+
+  final-status:
+    if: always()
+    needs:
+      - overview
+      - frontend
+      - backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show final orchestrator status
+        run: |
+          echo "Frontend result: ${{ needs.frontend.result }}"
+          echo "Backend result: ${{ needs.backend.result }}"
+          {
+            echo ""
+            echo "## Final Result"
+            echo "- Frontend workflow result: \`${{ needs.frontend.result }}\`"
+            echo "- Backend workflow result: \`${{ needs.backend.result }}\`"
+            echo "- Overall orchestrator status: \`${{ job.status }}\`"
+            echo ""
+            echo "You can open each child workflow job in this run to see step-by-step execution, what triggered it, and where it stopped or succeeded."
+          } >> $GITHUB_STEP_SUMMARY
