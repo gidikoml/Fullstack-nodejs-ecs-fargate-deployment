@@ -84,6 +84,21 @@ Example:
 terraform-lock-table
 ```
 
+Create the DynamoDB table like this:
+
+1. Open AWS Console.
+2. Search for `DynamoDB`.
+3. Click `Create table`.
+4. Table name:
+   `terraform-lock-table`
+   You can choose another name, but use the same name in GitHub `TF_LOCK_TABLE`.
+5. Partition key:
+   `LockID`
+6. Type:
+   `String`
+7. Keep default settings.
+8. Click `Create table`.
+
 All manual Terraform workflows use this table to lock state during apply and destroy.
 
 ### Variables

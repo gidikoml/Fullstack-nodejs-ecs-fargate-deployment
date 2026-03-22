@@ -24,8 +24,13 @@ jobs:
   ecs-task-terraform:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/ecs-task
+      AWS_REGION_VAR: ${{ vars.AWS_REGION }}
+      AWS_REGION_SECRET: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET_VAR: ${{ vars.TF_STATE_BUCKET }}
+      TF_STATE_BUCKET_SECRET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_LOCK_TABLE_VAR: ${{ vars.TF_LOCK_TABLE }}
+      TF_LOCK_TABLE_SECRET: ${{ secrets.TF_LOCK_TABLE }}
 
     steps:
       - name: Checkout repository
@@ -42,7 +47,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION_VAR != '' && env.AWS_REGION_VAR || env.AWS_REGION_SECRET != '' && env.AWS_REGION_SECRET || 'us-east-1' }}
 
       - name: Show Terraform workflow context
         run: |
@@ -51,11 +56,13 @@ jobs:
             echo ""
             echo "- Trigger: \`${{ github.event_name }}\`"
             echo "- Ref: \`${{ github.ref }}\`"
-            echo "- AWS region: \`${{ env.AWS_REGION }}\`"
+            echo "- AWS region source detected: \`${{ vars.AWS_REGION != '' || secrets.AWS_REGION != '' }}\`"
             echo "- Working directory: \`${{ env.TF_WORKING_DIR }}\`"
             echo "- Requested action: \`${{ inputs.terraform_action }}\`"
             echo "- Destroy confirmation provided: \`${{ inputs.destroy_confirmation != '' }}\`"
             echo "- Remote state key: \`ecs-task/terraform.tfstate\`"
+            echo "- TF_STATE_BUCKET detected: \`${{ vars.TF_STATE_BUCKET != '' || secrets.TF_STATE_BUCKET != '' }}\`"
+            echo "- TF_LOCK_TABLE detected: \`${{ vars.TF_LOCK_TABLE != '' || secrets.TF_LOCK_TABLE != '' }}\`"
             echo ""
             echo "This workflow is manual-only. It never runs automatically on push or pull request."
           } >> $GITHUB_STEP_SUMMARY
@@ -68,22 +75,30 @@ jobs:
         shell: bash
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          if [ -z "${{ vars.TF_STATE_BUCKET }}" ]; then
-            echo "Missing repository variable TF_STATE_BUCKET. Set it before running Terraform workflows."
+          TF_STATE_BUCKET="${TF_STATE_BUCKET_VAR:-$TF_STATE_BUCKET_SECRET}"
+          TF_LOCK_TABLE="${TF_LOCK_TABLE_VAR:-$TF_LOCK_TABLE_SECRET}"
+          AWS_REGION="${AWS_REGION_VAR:-$AWS_REGION_SECRET}"
+
+          if [ -z "$AWS_REGION" ]; then
+            AWS_REGION="us-east-1"
+          fi
+
+          if [ -z "$TF_STATE_BUCKET" ]; then
+            echo "Missing TF_STATE_BUCKET. Add it in GitHub Actions Variables or Secrets."
             exit 1
           fi
 
-          if [ -z "${{ vars.TF_LOCK_TABLE }}" ]; then
-            echo "Missing repository variable TF_LOCK_TABLE. Set it before running Terraform workflows."
+          if [ -z "$TF_LOCK_TABLE" ]; then
+            echo "Missing TF_LOCK_TABLE. Add it in GitHub Actions Variables or Secrets."
             exit 1
           fi
 
           BACKEND_ARGS=(
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+            -backend-config="bucket=$TF_STATE_BUCKET"
             -backend-config="key=ecs-task/terraform.tfstate"
-            -backend-config="region=${{ env.AWS_REGION }}"
+            -backend-config="region=$AWS_REGION"
             -backend-config="encrypt=true"
-            -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}"
+            -backend-config="dynamodb_table=$TF_LOCK_TABLE"
           )
 
           terraform init -input=false -no-color "${BACKEND_ARGS[@]}"
