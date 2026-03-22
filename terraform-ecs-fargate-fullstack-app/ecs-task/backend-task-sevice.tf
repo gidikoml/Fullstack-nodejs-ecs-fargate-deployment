@@ -54,7 +54,7 @@ resource "aws_ecs_task_definition" "back-task" {
       ]
 
       environment = [
-        { name = "DB_HOST", value = "book-rds.c0n8k0a0swtz.us-east-1.rds.amazonaws.com" }, // replace your databasw end point
+        { name = "DB_HOST", value = "book-rds.c4row02me3au.us-east-1.rds.amazonaws.com" }, // replace your databasw end point
         { name = "PORT", value = "3306" },
         { name = "DB_USERNAME", value = "admin" },
         { name = "DB_PASSWORD", value = "Yaswanth123reddy" }
