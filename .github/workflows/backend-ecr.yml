@@ -33,7 +33,7 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build backend Docker image
         id: docker_build
@@ -74,7 +74,7 @@ jobs:
       - name: Configure AWS credentials
         id: configure_aws_credentials
         if: github.event_name != 'pull_request'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -117,14 +117,24 @@ jobs:
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} 2>&1 | tee backend-push.log
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest 2>&1 | tee -a backend-push.log
 
-      - name: Publish backend failure reason
-        if: failure()
+      - name: Publish backend job summary
+        if: always()
         shell: bash
         run: |
           {
             echo ""
-            echo "## Backend Failure Details"
+            echo "### Backend Pipeline Status"
+            echo "- Job status: \`${{ job.status }}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Repository target: \`${{ env.ECR_REPOSITORY }}\`"
           } >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" != "success" ]; then
+            {
+              echo ""
+              echo "## Backend Failure Details"
+            } >> $GITHUB_STEP_SUMMARY
+          fi
 
           if [ "${{ steps.docker_build.outcome }}" = "failure" ]; then
             echo "- Failed step: \`Build backend Docker image\`" >> $GITHUB_STEP_SUMMARY
@@ -154,13 +164,13 @@ jobs:
             echo '```text' >> $GITHUB_STEP_SUMMARY
             tail -n 40 backend-push.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-          else
+          elif [ "${{ job.status }}" != "success" ]; then
             echo "- A backend step failed before a log file could be captured. Open the job logs for the first failed step." >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-pipeline-logs
           if-no-files-found: ignore
@@ -168,14 +178,3 @@ jobs:
             backend-test.log
             backend-docker-build.log
             backend-push.log
-
-      - name: Publish backend completion summary
-        if: always()
-        run: |
-          {
-            echo ""
-            echo "### Backend Pipeline Status"
-            echo "- Job status: \`${{ job.status }}\`"
-            echo "- Trigger: \`${{ github.event_name }}\`"
-            echo "- Repository target: \`${{ env.ECR_REPOSITORY }}\`"
-          } >> $GITHUB_STEP_SUMMARY
