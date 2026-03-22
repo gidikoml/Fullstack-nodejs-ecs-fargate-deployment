@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "back-task" {
   container_definitions = jsonencode([
     {
       name      = "backend"
-      image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/backend:latest" #replace you backend images
+      image     = "713939171080.dkr.ecr.us-east-1.amazonaws.com/backend" #replace you backend images
       cpu       = 256
       memory    = 512
       essential = true

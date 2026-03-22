@@ -432,6 +432,56 @@ mysql -h <your-rds-endpoint> -u admin -p < test.sql
 
 ---
 
+
+## Step 4: Verify Image URLs
+
+1. Go to AWS Console → **Amazon Elastic Container Registry**.
+2. Select **backend** repository → Copy the image URI.
+3. Select **frontend** repository → Copy the image URI.
+
+---
+
+## Step 5: Update Terraform Task Definitions
+
+### Backend Task Definition
+
+1. Go to **VS Code** → Open `terraform-ecs-fargate-fullstack-app` → Open `backend-task-server.tf`
+2. Update your image in the `container_definitions` block:
+
+   ```hcl
+   container_definitions = jsonencode([
+     {
+       name      = "backend"
+       image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/backend:latest"  # Replace with your backend image
+       cpu       = 256
+       memory    = 512
+       essential = true
+     }
+   ])
+   ```
+
+### Frontend Task Definition
+
+1. Go to **VS Code** → Open `terraform-ecs-fargate-fullstack-app` → Open `frontend-task-server.tf`
+2. Update your image in the `container_definitions` block:
+
+   ```hcl
+   container_definitions = jsonencode([
+     {
+       name      = "frontend"
+       image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/frontend:latest"  # Replace with your frontend image
+       cpu       = 256
+       memory    = 512
+       essential = true
+     }
+   ])
+   ```
+
+---
+
+> ✅ Now your ECS Task Definitions are configured to use the latest images from Amazon ECR!
+
+
 ## 🔄 Update ECS Task Definition with RDS Endpoint
 
 1. **Backend Task Update** (`backend-task-server.tf`):
