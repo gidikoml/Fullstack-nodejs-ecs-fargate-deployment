@@ -23,6 +23,8 @@ Deployment Strategy: Manual setup using AWS Console & CLI (Terraform optional ex
 
 ## 🏠 Architecture
 
+![ECS Fargate Architecture](https://github.com/arumullayaswanth/Fullstack-nodejs-ecs-fargate-deployment/blob/db0257e97ff72a88871b2d3629ef3c951bb614b1/documents%20file/fargate-2.jpg)
+
 <table style="width: 100%; margin-bottom: 20px;">
   <tr>
     <td align="center" style="padding: 10px; background-color: #e9f7f5; border-radius: 8px;">
