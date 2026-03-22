@@ -1,6 +1,26 @@
 name: Fullstack ECR Flow
 
 on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "client/**"
+      - "backend/**"
+      - ".github/workflows/frontend-ecr.yml"
+      - ".github/workflows/backend-ecr.yml"
+      - ".github/workflows/fullstack-ecr-flow.yml"
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - "client/**"
+      - "backend/**"
+      - ".github/workflows/frontend-ecr.yml"
+      - ".github/workflows/backend-ecr.yml"
+      - ".github/workflows/fullstack-ecr-flow.yml"
   workflow_dispatch:
 
 jobs:
