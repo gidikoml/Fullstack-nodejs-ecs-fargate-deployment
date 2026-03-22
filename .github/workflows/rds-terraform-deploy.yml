@@ -42,7 +42,6 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Show Terraform workflow context
@@ -56,6 +55,7 @@ jobs:
             echo "- Working directory: \`${{ env.TF_WORKING_DIR }}\`"
             echo "- Requested action: \`${{ inputs.terraform_action }}\`"
             echo "- Destroy confirmation provided: \`${{ inputs.destroy_confirmation != '' }}\`"
+            echo "- Remote state key: \`rds/terraform.tfstate\`"
             echo ""
             echo "This workflow is manual-only. It never runs automatically on push or pull request."
           } >> $GITHUB_STEP_SUMMARY
@@ -65,8 +65,28 @@ jobs:
         run: terraform fmt -check -no-color
 
       - name: Terraform init
+        shell: bash
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -input=false -no-color
+        run: |
+          if [ -z "${{ vars.TF_STATE_BUCKET }}" ]; then
+            echo "Missing repository variable TF_STATE_BUCKET. Set it before running Terraform workflows."
+            exit 1
+          fi
+
+          if [ -z "${{ vars.TF_LOCK_TABLE }}" ]; then
+            echo "Missing repository variable TF_LOCK_TABLE. Set it before running Terraform workflows."
+            exit 1
+          fi
+
+          BACKEND_ARGS=(
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+            -backend-config="key=rds/terraform.tfstate"
+            -backend-config="region=${{ env.AWS_REGION }}"
+            -backend-config="encrypt=true"
+            -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}"
+          )
+
+          terraform init -input=false -no-color "${BACKEND_ARGS[@]}"
 
       - name: Terraform validate
         working-directory: ${{ env.TF_WORKING_DIR }}
