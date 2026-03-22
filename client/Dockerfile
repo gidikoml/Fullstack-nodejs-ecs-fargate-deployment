@@ -28,7 +28,6 @@
 
 # # Start Apache HTTP Server
 # CMD ["httpd-foreground"]
-
 # Stage 1: Build React App
 FROM node:18 AS build
 
@@ -54,6 +53,6 @@ COPY --from=build /app/build /usr/local/apache2/htdocs/
 EXPOSE 80
 
 # Run the script before starting Apache
- CMD ["httpd-foreground"]
+CMD ["httpd-foreground"]
 
 #CMD ["/entrypoint.sh"]
