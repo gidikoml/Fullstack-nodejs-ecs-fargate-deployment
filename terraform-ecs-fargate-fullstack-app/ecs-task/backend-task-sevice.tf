@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "back-task" {
   container_definitions = jsonencode([
     {
       name      = "backend"
-      image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/backend:latest"  #replace you backend images
+      image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/backend:latest" #replace you backend images
       cpu       = 256
       memory    = 512
       essential = true
@@ -54,7 +54,7 @@ resource "aws_ecs_task_definition" "back-task" {
       ]
 
       environment = [
-        { name = "DB_HOST", value = "book-rds.c0n8k0a0swtz.us-east-1.rds.amazonaws.com" },   // replace your databasw end point
+        { name = "DB_HOST", value = "book-rds.c0n8k0a0swtz.us-east-1.rds.amazonaws.com" }, // replace your databasw end point
         { name = "PORT", value = "3306" },
         { name = "DB_USERNAME", value = "admin" },
         { name = "DB_PASSWORD", value = "Yaswanth123reddy" }
@@ -73,8 +73,8 @@ resource "aws_ecs_service" "back-ecs_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
-    security_groups = [data.aws_security_group.sg.id]
+    subnets          = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
+    security_groups  = [data.aws_security_group.sg.id]
     assign_public_ip = true
   }
 

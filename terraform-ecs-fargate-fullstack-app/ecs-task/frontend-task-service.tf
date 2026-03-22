@@ -41,7 +41,7 @@ resource "aws_ecs_task_definition" "front_task" {
   container_definitions = jsonencode([
     {
       name      = "frontend"
-      image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/frontend:latest"   # Replace you frontend image
+      image     = "421954350274.dkr.ecr.us-east-1.amazonaws.com/frontend:latest" # Replace you frontend image
       cpu       = 256
       memory    = 512
       essential = true
@@ -50,7 +50,7 @@ resource "aws_ecs_task_definition" "front_task" {
           containerPort = 80
           protocol      = "tcp"
 
-}
+        }
       ]
     }
   ])
@@ -65,8 +65,8 @@ resource "aws_ecs_service" "front_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
-    security_groups = [data.aws_security_group.sg.id]
+    subnets          = [data.aws_subnet.private1.id, data.aws_subnet.private2.id]
+    security_groups  = [data.aws_security_group.sg.id]
     assign_public_ip = true
   }
 
