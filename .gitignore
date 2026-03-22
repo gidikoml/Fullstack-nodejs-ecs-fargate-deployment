@@ -5,12 +5,12 @@ backend/node_modules/
 
 # Environment files
 
-.env.*
+#.env.*
 !.env.example
-client/.env
-client/.env.*
-backend/.env
-backend/.env.*
+#client/.env
+#client/.env.*
+#backend/.env
+#backend/.env.*
 
 # Build outputs
 build/

@@ -8,9 +8,6 @@ on:
     paths:
       - "client/**"
       - "backend/**"
-      - ".github/workflows/frontend-ecr.yml"
-      - ".github/workflows/backend-ecr.yml"
-      - ".github/workflows/fullstack-ecr-flow.yml"
   pull_request:
     branches:
       - main
@@ -18,13 +15,54 @@ on:
     paths:
       - "client/**"
       - "backend/**"
-      - ".github/workflows/frontend-ecr.yml"
-      - ".github/workflows/backend-ecr.yml"
-      - ".github/workflows/fullstack-ecr-flow.yml"
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_changed: ${{ steps.detect.outputs.frontend_changed }}
+      backend_changed: ${{ steps.detect.outputs.backend_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect frontend and backend changes
+        id: detect
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "frontend_changed=true" >> "$GITHUB_OUTPUT"
+            echo "backend_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+
+          if echo "$CHANGED_FILES" | grep -q '^client/'; then
+            echo "frontend_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q '^backend/'; then
+            echo "backend_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   overview:
+    needs: detect-changes
     runs-on: ubuntu-latest
     steps:
       - name: Explain the full flow
@@ -38,15 +76,18 @@ jobs:
             echo "This workflow is the single entry point for your full image pipeline."
             echo ""
             echo "## What it does"
-            echo "- Starts the frontend workflow"
-            echo "- Starts the backend workflow"
-            echo "- Waits for both workflows to finish"
+            echo "- Detects whether \`client/\` changed"
+            echo "- Detects whether \`backend/\` changed"
+            echo "- Starts the frontend workflow only if \`client/\` changed"
+            echo "- Starts the backend workflow only if \`backend/\` changed"
             echo "- Prints a final status summary"
             echo ""
             echo "## Trigger details"
             echo "- Trigger: \`${{ github.event_name }}\`"
             echo "- Ref: \`${{ github.ref }}\`"
             echo "- Repository: \`${{ github.repository }}\`"
+            echo "- Frontend changed: \`${{ needs.detect-changes.outputs.frontend_changed }}\`"
+            echo "- Backend changed: \`${{ needs.detect-changes.outputs.backend_changed }}\`"
             echo ""
             echo "## Child workflows"
             echo "- Frontend workflow file: \`.github/workflows/frontend-ecr.yml\`"
@@ -54,18 +95,25 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
   frontend:
-    needs: overview
+    if: needs.detect-changes.outputs.frontend_changed == 'true'
+    needs:
+      - detect-changes
+      - overview
     uses: ./.github/workflows/frontend-ecr.yml
     secrets: inherit
 
   backend:
-    needs: overview
+    if: needs.detect-changes.outputs.backend_changed == 'true'
+    needs:
+      - detect-changes
+      - overview
     uses: ./.github/workflows/backend-ecr.yml
     secrets: inherit
 
   final-status:
     if: always()
     needs:
+      - detect-changes
       - overview
       - frontend
       - backend
@@ -78,9 +126,11 @@ jobs:
           {
             echo ""
             echo "## Final Result"
+            echo "- Frontend folder changed: \`${{ needs.detect-changes.outputs.frontend_changed }}\`"
+            echo "- Backend folder changed: \`${{ needs.detect-changes.outputs.backend_changed }}\`"
             echo "- Frontend workflow result: \`${{ needs.frontend.result }}\`"
             echo "- Backend workflow result: \`${{ needs.backend.result }}\`"
             echo "- Overall orchestrator status: \`${{ job.status }}\`"
             echo ""
-            echo "You can open each child workflow job in this run to see step-by-step execution, what triggered it, and where it stopped or succeeded."
+            echo "Only the folders that changed are built automatically. Manual runs still allow both to run together."
           } >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,114 @@
+name: Manual Terraform RDS Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_action:
+        description: "Choose whether to preview, deploy, or destroy the RDS Terraform"
+        required: true
+        type: choice
+        default: apply
+        options:
+          - apply
+          - plan
+          - destroy
+      destroy_confirmation:
+        description: "Type DESTROY to allow terraform destroy"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rds-terraform:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/rds
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.7
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Show Terraform workflow context
+        run: |
+          {
+            echo "## Manual Terraform RDS Deploy"
+            echo ""
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Ref: \`${{ github.ref }}\`"
+            echo "- AWS region: \`${{ env.AWS_REGION }}\`"
+            echo "- Working directory: \`${{ env.TF_WORKING_DIR }}\`"
+            echo "- Requested action: \`${{ inputs.terraform_action }}\`"
+            echo "- Destroy confirmation provided: \`${{ inputs.destroy_confirmation != '' }}\`"
+            echo ""
+            echo "This workflow is manual-only. It never runs automatically on push or pull request."
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Terraform format check
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check -no-color
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false -no-color
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        if: inputs.terraform_action == 'plan' || inputs.terraform_action == 'apply'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -input=false -no-color
+
+      - name: Terraform destroy plan
+        if: inputs.terraform_action == 'destroy'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -destroy -input=false -no-color
+
+      - name: Confirm destroy request
+        if: inputs.terraform_action == 'destroy'
+        shell: bash
+        run: |
+          if [ "${{ inputs.destroy_confirmation }}" != "DESTROY" ]; then
+            echo "Destroy confirmation missing. Type DESTROY in the workflow input to continue."
+            exit 1
+          fi
+
+      - name: Terraform apply
+        if: inputs.terraform_action == 'apply'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve -input=false -no-color
+
+      - name: Terraform destroy
+        if: inputs.terraform_action == 'destroy' && inputs.destroy_confirmation == 'DESTROY'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -auto-approve -input=false -no-color
+
+      - name: Publish Terraform result summary
+        if: always()
+        run: |
+          {
+            echo ""
+            echo "### Terraform RDS Workflow Status"
+            echo "- Job status: \`${{ job.status }}\`"
+            echo "- Requested action: \`${{ inputs.terraform_action }}\`"
+            echo "- Destroy confirmation matched: \`${{ inputs.destroy_confirmation == 'DESTROY' }}\`"
+            echo "- Manual only: \`true\`"
+          } >> $GITHUB_STEP_SUMMARY
