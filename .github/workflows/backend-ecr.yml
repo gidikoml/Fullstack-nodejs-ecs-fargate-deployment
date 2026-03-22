@@ -29,37 +29,11 @@ jobs:
             echo "- ECR repository: \`${{ env.ECR_REPOSITORY }}\`"
             echo "- Image tag: \`${{ env.IMAGE_TAG }}\`"
             echo "- Will push image: \`${{ github.event_name != 'pull_request' }}\`"
-            echo "- Flow: install -> smoke test -> docker build -> ECR push"
+            echo "- Flow: docker build -> container smoke test -> ECR push"
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        id: setup_node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install backend dependencies
-        id: install_dependencies
-        shell: bash
-        working-directory: backend
-        run: |
-          set -o pipefail
-          npm config set registry https://registry.npmjs.org/
-          npm cache clean --force
-          npm install --omit=dev --no-audit 2>&1 | tee ../backend-install.log
-
-      - name: Run backend smoke test
-        id: run_smoke_test
-        shell: bash
-        working-directory: backend
-        run: |
-          set -o pipefail
-          npm test 2>&1 | tee ../backend-test.log
 
       - name: Build backend Docker image
         id: docker_build
@@ -67,6 +41,35 @@ jobs:
         run: |
           set -o pipefail
           docker build -t ${{ env.ECR_REPOSITORY }}:ci -f backend/Dockerfile backend 2>&1 | tee backend-docker-build.log
+
+      - name: Run backend container smoke test
+        id: run_smoke_test
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run -d --rm \
+            --name backend-smoke \
+            -e APP_PORT=80 \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_PORT=3306 \
+            -e DB_USERNAME=test \
+            -e DB_PASSWORD=test \
+            -e DB_NAME=test \
+            -p 8080:80 \
+            ${{ env.ECR_REPOSITORY }}:ci
+
+          for i in {1..15}; do
+            if curl --silent --fail http://127.0.0.1:8080/ > backend-test.log; then
+              cat backend-test.log
+              docker stop backend-smoke >/dev/null || true
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs backend-smoke 2>&1 | tee -a backend-test.log || true
+          docker stop backend-smoke >/dev/null || true
+          exit 1
 
       - name: Configure AWS credentials
         id: configure_aws_credentials
@@ -123,23 +126,17 @@ jobs:
             echo "## Backend Failure Details"
           } >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ steps.install_dependencies.outcome }}" = "failure" ]; then
-            echo "- Failed step: \`Install backend dependencies\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.docker_build.outcome }}" = "failure" ]; then
+            echo "- Failed step: \`Build backend Docker image\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 40 backend-install.log >> $GITHUB_STEP_SUMMARY
+            tail -n 40 backend-docker-build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.run_smoke_test.outcome }}" = "failure" ]; then
             echo "- Failed step: \`Run backend smoke test\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```text' >> $GITHUB_STEP_SUMMARY
             tail -n 40 backend-test.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.docker_build.outcome }}" = "failure" ]; then
-            echo "- Failed step: \`Build backend Docker image\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 40 backend-docker-build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.configure_aws_credentials.outcome }}" = "failure" ]; then
             echo "- Failed step: \`Configure AWS credentials\`" >> $GITHUB_STEP_SUMMARY
@@ -168,7 +165,6 @@ jobs:
           name: backend-pipeline-logs
           if-no-files-found: ignore
           path: |
-            backend-install.log
             backend-test.log
             backend-docker-build.log
             backend-push.log
