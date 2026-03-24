@@ -331,7 +331,7 @@ Lambda function
 👉 Choose your Lambda:
 
 ```text
-ec3
+AutoUpdateFullstack 
 ```
 
 👉 Click **Next**
@@ -343,41 +343,127 @@ ec3
 
 ---
 
-# 🧪 STEP 11: TEST IT
+# 🧪 STEP 11: Testing the Auto Deployment
 
-Push new image:
+# 🧒 What are we testing?
 
+We want to check:
+
+👉 When image is pushed to ECR
+👉 Lambda triggers automatically
+👉 ECS updates automatically
+
+
+### 🧪 Test 1: Manual Lambda Test (Optional)
+
+This is just to check if Lambda logic is working.
+
+#### 🧭 Step 1: Open Lambda
+
+👉 Go to AWS Console → Lambda
+👉 Open your function → `AutoUpdateFullstack`
+
+#### 🧭 Step 2: Configure Test Event
+
+Click **Test → Configure test event**
+
+Paste this:
+
+```json id="9k0z7m"
+{
+  "source": "aws.ecr",
+  "detail-type": "ECR Image Action",
+  "detail": {
+    "repository-name": "backend",
+    "image-tag": "v1"
+  }
+}
 ```
+
+👉 Click **Save**
+👉 Click **Test**
+
+#### ✅ Expected Output
+
+```text id="phb6zq"
+backend updated successfully 🚀
+```
+
+---
+
+# ⚠️ Note
+
+👉 This is only a **manual test**
+👉 Real system works only when you push image
+
+---
+
+### 🚀 Test 2: Real Auto Deployment (IMPORTANT 🔥)
+
+This is the **actual test**
+
+#### 🧭 Step 1: Build Image
+
+```bash id="4j3p1k"
 docker build -t backend ./backend
-docker tag backend:latest backend:v2
-docker push ...
 ```
 
----
+#### 🧭 Step 2: Tag Image
 
-# 🎯 RESULT
+```bash id="3okfhl"
+docker tag backend:latest \
+YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/backend:v2
+```
+#### 🧭 Step 3: Push Image
 
-🔥 Image pushed
-🔥 Lambda triggered
-🔥 ECS updated
-🔥 New version LIVE
+```bash id="4cdv6k"
+docker push YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/backend:v2
+```
+#### ⚡ What Happens Automatically
 
----
+After push:
 
-# 🎉 DONE!
+```text id="p9ch9z"
+ECR → EventBridge → Lambda → ECS → New Deployment 🚀
+```
+#### 👀 Step 4: Verify Lambda
 
-You built:
+👉 Go to Lambda → Monitor → Logs
 
-✅ Fullstack deployment
-✅ Auto CI/CD
-✅ Production-level system
+You should see:
 
----
+```text id="9j1wgh"
+backend updated successfully 🚀
+```
+#### 👀 Step 5: Verify ECS
 
-# 💥 Final Tip
+👉 Go to ECS → Cluster → intrepid-panda-grnjfc
+👉 Service → backend-service-i63mwo7e
+👉 Tasks
 
-Explain this in interview like this:
+You will see:
 
-👉 "I built an event-driven ECS deployment system using ECR, Lambda, and EventBridge"
+🔥 Old task → stopping
+🔥 New task → running
 
-🔥 That’s DevOps Engineer level
+#### 🧪 Test 3: Frontend Test
+
+Repeat same steps for frontend:
+
+```bash id="0uk6kp"
+docker build -t frontend ./client
+
+docker tag frontend:latest \
+YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/frontend:v2
+
+docker push YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/frontend:v2
+```
+#### ✅ Expected Result
+
+👉 Frontend service will update automatically:
+
+```text id="98f7th"
+frontend-service-s8nkje7c
+```
+
+
