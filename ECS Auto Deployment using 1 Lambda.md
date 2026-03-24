@@ -141,21 +141,31 @@ Go to AWS → Lambda → Create Function
 ```
 import boto3
 import os
+import json
 
-# ✅ Auto-detect region (no ENV needed)
 ecs = boto3.client('ecs')
 region = ecs.meta.region_name
 
 def lambda_handler(event, context):
 
+    print("🔍 Full Event Received:", json.dumps(event))
+
+    # ✅ Validate event structure
+    if 'detail' not in event:
+        return {"message": "Invalid event: No 'detail' found"}
+
     cluster = os.environ['ECS_CLUSTER']
     account_id = os.environ['AWS_ACCOUNT_ID']
 
-    repository = event['detail']['repository-name']
-    tag = event['detail']['image-tag']
+    repository = event['detail'].get('repository-name')
+    tag = event['detail'].get('image-tag')
 
-    # ✅ Use detected region
+    if not repository or not tag:
+        return {"message": "Missing repository-name or image-tag"}
+
     image_uri = f"{account_id}.dkr.ecr.{region}.amazonaws.com/{repository}:{tag}"
+
+    print(f"📦 New Image URI: {image_uri}")
 
     service_map = {
         os.environ['BACKEND_REPO']: {
@@ -168,11 +178,14 @@ def lambda_handler(event, context):
         }
     }
 
+    # ❌ Unknown repo safety
     if repository not in service_map:
         return {"message": f"Unknown repo: {repository}"}
 
     service = service_map[repository]['service']
     task = service_map[repository]['task']
+
+    print(f"🚀 Updating Service: {service}, Container: {task}")
 
     # 📦 Get current task definition
     res = ecs.describe_services(cluster=cluster, services=[service])
@@ -185,11 +198,12 @@ def lambda_handler(event, context):
     updated = False
     for c in container_defs:
         if c['name'] == task:
+            print(f"🔄 Updating container {task} image")
             c['image'] = image_uri
             updated = True
 
     if not updated:
-        raise Exception(f"Container '{task}' not found")
+        raise Exception(f"❌ Container '{task}' not found")
 
     # 🆕 Register new task definition
     new_task = ecs.register_task_definition(
@@ -202,12 +216,16 @@ def lambda_handler(event, context):
         memory=task_def['taskDefinition']['memory']
     )
 
+    print("🆕 New task definition registered")
+
     # 🚀 Update ECS service
     ecs.update_service(
         cluster=cluster,
         service=service,
         taskDefinition=new_task['taskDefinition']['taskDefinitionArn']
     )
+
+    print("✅ ECS service updated successfully")
 
     return {"message": f"{repository} updated successfully 🚀"}
 ```
