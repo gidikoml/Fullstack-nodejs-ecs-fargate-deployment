@@ -258,15 +258,50 @@ Attach this policy:
 
 ---
 
-# ⚡ STEP 10: Create EventBridge Rule
+# ⚡ STEP 10: Create EventBridge Rule (Auto Trigger)
 
-Go to EventBridge → Create Rule
+#### 🧭 STEP 10.1: Open EventBridge
 
-* Name: `ECRAutoDeploy`
+Go to AWS Console
 
-Pattern:
+👉 Search: **EventBridge**
+👉 Click **Amazon EventBridge**
 
+#### 🧭 STEP 10.2: Go to Rules
+
+👉 Click **Rules** (left side)
+👉 Click **Create rule**
+
+#### 🧭 STEP 10.3: Basic Settings
+
+Fill this:
+
+```text
+Rule name: ECR-Auto-Deploy
+Description: Trigger Lambda when image pushed to ECR
+Event bus: default
 ```
+👉 Click **Next**
+
+#### 🧭 STEP 10.4: Choose Event Source
+
+👉 Select:
+
+```text
+Event source: AWS events
+AWS service: ECR (Elastic Container Registry)
+Event type: ECR Image Action
+```
+
+#### 🧭 STEP 10.5: Add Event Pattern (IMPORTANT 🔥)
+
+Choose:
+
+👉 **Custom pattern (JSON)**
+
+Paste this:
+
+```json
 {
   "source": ["aws.ecr"],
   "detail-type": ["ECR Image Action"],
@@ -277,9 +312,34 @@ Pattern:
 }
 ```
 
-Target:
+👉 Click **Next**
 
-👉 Lambda → AutoUpdateFullstack
+#### 🧭 STEP 10.6: Add Target (VERY IMPORTANT)
+
+👉 Target type:
+
+```text
+AWS service
+```
+
+👉 Select:
+
+```text
+Lambda function
+```
+
+👉 Choose your Lambda:
+
+```text
+ec3
+```
+
+👉 Click **Next**
+
+#### 🧭 STEP 10.7: Review & Create
+
+👉 Check everything
+👉 Click **Create rule**
 
 ---
 
