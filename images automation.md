@@ -1,7 +1,4 @@
-# 🚀 Fullstack Auto Deployment (ECR → ECS using 1 Lambda)
-
-
-# 🧠 Architecture (Very Simple)
+# 🧠 Architecture
 
 ```
 Developer → Docker Push → ECR → EventBridge → Lambda → ECS → App Updated
