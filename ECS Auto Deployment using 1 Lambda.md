@@ -142,17 +142,19 @@ Go to AWS → Lambda → Create Function
 import boto3
 import os
 
+# ✅ Auto-detect region (no ENV needed)
 ecs = boto3.client('ecs')
+region = ecs.meta.region_name
 
 def lambda_handler(event, context):
 
     cluster = os.environ['ECS_CLUSTER']
     account_id = os.environ['AWS_ACCOUNT_ID']
-    region = os.environ['AWS_REGION']
 
     repository = event['detail']['repository-name']
     tag = event['detail']['image-tag']
 
+    # ✅ Use detected region
     image_uri = f"{account_id}.dkr.ecr.{region}.amazonaws.com/{repository}:{tag}"
 
     service_map = {
@@ -167,21 +169,29 @@ def lambda_handler(event, context):
     }
 
     if repository not in service_map:
-        return {"message": "Unknown repo"}
+        return {"message": f"Unknown repo: {repository}"}
 
     service = service_map[repository]['service']
     task = service_map[repository]['task']
 
+    # 📦 Get current task definition
     res = ecs.describe_services(cluster=cluster, services=[service])
     task_def_arn = res['services'][0]['taskDefinition']
 
     task_def = ecs.describe_task_definition(taskDefinition=task_def_arn)
     container_defs = task_def['taskDefinition']['containerDefinitions']
 
+    # 🔄 Update container image
+    updated = False
     for c in container_defs:
         if c['name'] == task:
             c['image'] = image_uri
+            updated = True
 
+    if not updated:
+        raise Exception(f"Container '{task}' not found")
+
+    # 🆕 Register new task definition
     new_task = ecs.register_task_definition(
         family=task_def['taskDefinition']['family'],
         executionRoleArn=task_def['taskDefinition']['executionRoleArn'],
@@ -192,13 +202,14 @@ def lambda_handler(event, context):
         memory=task_def['taskDefinition']['memory']
     )
 
+    # 🚀 Update ECS service
     ecs.update_service(
         cluster=cluster,
         service=service,
         taskDefinition=new_task['taskDefinition']['taskDefinitionArn']
     )
 
-    return {"message": f"{repository} updated 🚀"}
+    return {"message": f"{repository} updated successfully 🚀"}
 ```
 
 ---
@@ -210,7 +221,7 @@ Lambda → Configuration → Environment Variables
 ```
 ECS_CLUSTER=intrepid-panda-grnjfc
 AWS_ACCOUNT_ID=YOUR_ACCOUNT_ID
-AWS_REGION=us-east-1
+
 
 BACKEND_REPO=backend
 BACKEND_SERVICE=backend-service-i63mwo7e
