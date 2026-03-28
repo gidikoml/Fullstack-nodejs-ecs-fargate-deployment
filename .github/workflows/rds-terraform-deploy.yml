@@ -1,48 +1,52 @@
-provider "aws" {
-  region = "us-east-1"
-}
+name: Terraform RDS Deploy
 
-resource "aws_db_instance" "rds" {
-  identifier = "book-rds"
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_action:
+        description: "Choose action"
+        required: true
+        type: choice
+        default: apply
+        options:
+          - apply
+          - plan
+          - destroy
 
-  engine         = "mysql"
-  engine_version = "8.0"
+jobs:
+  rds-terraform:
+    runs-on: ubuntu-latest
 
-  instance_class = "db.t3.micro"
+    env:
+      TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/rds
+      AWS_REGION: us-east-1
+      TF_STATE_BUCKET: amen-terraform
+      TF_LOCK_TABLE: terraform-lock-table
 
-  allocated_storage = 20
-  storage_type      = "gp2"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  db_name  = "bookdb"
-  username = "admin"
-  password = "Admin1234!"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-  port = 3306
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-  # ✅ FIX FREE TIER (CRITICAL)
-  backup_retention_period = 1
-  multi_az               = false
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="key=rds/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=$TF_LOCK_TABLE"
 
-  # ✅ ACCESS
-  publicly_accessible = true
-
-  # ✅ REQUIRED
-  skip_final_snapshot = true
-  apply_immediately   = true
-
-  # ✅ USE YOUR SG (OK)
-  vpc_security_group_ids = ["sg-0278aec1b35fc3645"]
-
-  tags = {
-    Name = "book-rds"
-  }
-}
-
-# ✅ OUTPUTS
-output "rds_endpoint" {
-  value = aws_db_instance.rds.endpoint
-}
-
-output "rds_port" {
-  value = aws_db_instance.rds.port
-}
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
