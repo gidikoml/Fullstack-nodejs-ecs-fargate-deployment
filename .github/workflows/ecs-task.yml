@@ -27,11 +27,12 @@ jobs:
     env:
       TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/ecs-task
 
-      # ✅ HARD FIX (plus de bug)
+      # ✅ FIX REGION
       AWS_REGION: us-east-1
 
-      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-      TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+      # ✅ TES CONFIGS
+      TF_STATE_BUCKET: amen-terraform-state
+      TF_LOCK_TABLE: terraform-lock-table
 
     steps:
       - name: Checkout repository
@@ -51,6 +52,8 @@ jobs:
         run: |
           echo "AWS REGION = $AWS_REGION"
           echo "TF DIR = $TF_WORKING_DIR"
+          echo "BUCKET = $TF_STATE_BUCKET"
+          echo "LOCK TABLE = $TF_LOCK_TABLE"
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
