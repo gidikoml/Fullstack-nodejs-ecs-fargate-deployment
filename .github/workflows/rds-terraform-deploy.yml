@@ -1,52 +1,35 @@
-name: Terraform RDS Deploy
+provider "aws" {
+  region = "us-east-1"
+}
 
-on:
-  workflow_dispatch:
-    inputs:
-      terraform_action:
-        description: "Choose action"
-        required: true
-        type: choice
-        default: apply
-        options:
-          - apply
-          - plan
-          - destroy
+resource "aws_db_instance" "rds" {
+  identifier = "book-rds"
 
-jobs:
-  rds-terraform:
-    runs-on: ubuntu-latest
+  engine         = "mysql"
+  engine_version = "8.0"
 
-    env:
-      TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/rds
-      AWS_REGION: us-east-1
-      TF_STATE_BUCKET: amen-terraform
-      TF_LOCK_TABLE: terraform-lock-table
+  instance_class = "db.t3.micro"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  allocated_storage = 20
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+  db_name  = "bookdb"
+  username = "admin"
+  password = "Admin1234!"
 
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+  # ✅ CRITICAL FIX
+  backup_retention_period = 1
+  multi_az               = false
 
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          terraform init \
-            -backend-config="bucket=$TF_STATE_BUCKET" \
-            -backend-config="key=rds/terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
-            -backend-config="encrypt=true" \
-            -backend-config="dynamodb_table=$TF_LOCK_TABLE"
+  publicly_accessible = true
+  skip_final_snapshot = true
 
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve
+  vpc_security_group_ids = ["sg-0278aec1b35fc3645"]
+
+  tags = {
+    Name = "book-rds"
+  }
+}
+
+output "rds_endpoint" {
+  value = aws_db_instance.rds.endpoint
+}
