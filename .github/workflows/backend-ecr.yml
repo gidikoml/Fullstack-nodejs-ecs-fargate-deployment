@@ -8,7 +8,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'east-1b' }}
       ECR_REPOSITORY: backend
       IMAGE_TAG: ${{ github.sha }}
 
