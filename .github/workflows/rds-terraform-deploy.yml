@@ -1,92 +1,48 @@
+provider "aws" {
+  region = "us-east-1"
+}
 
-name: Terraform RDS Deploy
+resource "aws_db_instance" "rds" {
+  identifier = "book-rds"
 
-on:
-  workflow_dispatch:
-    inputs:
-      terraform_action:
-        description: "Choose action"
-        required: true
-        type: choice
-        default: apply
-        options:
-          - apply
-          - plan
-          - destroy
-      destroy_confirmation:
-        description: "Type DESTROY to confirm"
-        required: false
-        type: string
+  engine         = "mysql"
+  engine_version = "8.0"
 
-permissions:
-  contents: read
+  instance_class = "db.t3.micro"
 
-jobs:
-  rds-terraform:
-    runs-on: ubuntu-latest
+  allocated_storage = 20
+  storage_type      = "gp2"
 
-    env:
-      TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/rds
+  db_name  = "bookdb"
+  username = "admin"
+  password = "Admin1234!"
 
-      # ✅ CONFIG SIMPLE (FIX FINAL)
-      AWS_REGION: us-east-1
-      TF_STATE_BUCKET: amen-terraform
-      TF_LOCK_TABLE: terraform-lock-table
+  port = 3306
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  # ✅ FIX FREE TIER (CRITICAL)
+  backup_retention_period = 1
+  multi_az               = false
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+  # ✅ ACCESS
+  publicly_accessible = true
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+  # ✅ REQUIRED
+  skip_final_snapshot = true
+  apply_immediately   = true
 
-      - name: Debug info
-        run: |
-          echo "AWS REGION: $AWS_REGION"
-          echo "WORK DIR: $TF_WORKING_DIR"
-          echo "BUCKET: $TF_STATE_BUCKET"
-          echo "LOCK TABLE: $TF_LOCK_TABLE"
+  # ✅ USE YOUR SG (OK)
+  vpc_security_group_ids = ["sg-0278aec1b35fc3645"]
 
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          terraform init \
-            -backend-config="bucket=$TF_STATE_BUCKET" \
-            -backend-config="key=rds/terraform.tfstate" \
-            -backend-config="region=$AWS_REGION" \
-            -backend-config="encrypt=true" \
-            -backend-config="dynamodb_table=$TF_LOCK_TABLE"
+  tags = {
+    Name = "book-rds"
+  }
+}
 
-      - name: Terraform Validate
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform validate
+# ✅ OUTPUTS
+output "rds_endpoint" {
+  value = aws_db_instance.rds.endpoint
+}
 
-      - name: Terraform Plan
-        if: inputs.terraform_action == 'plan' || inputs.terraform_action == 'apply'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan
-
-      - name: Confirm Destroy
-        if: inputs.terraform_action == 'destroy'
-        run: |
-          if [ "${{ inputs.destroy_confirmation }}" != "DESTROY" ]; then
-            echo "Destroy not confirmed"
-            exit 1
-          fi
-
-      - name: Terraform Apply
-        if: inputs.terraform_action == 'apply'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve
-
-      - name: Terraform Destroy
-        if: inputs.terraform_action == 'destroy' && inputs.destroy_confirmation == 'DESTROY'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform destroy -auto-approve
+output "rds_port" {
+  value = aws_db_instance.rds.port
+}
