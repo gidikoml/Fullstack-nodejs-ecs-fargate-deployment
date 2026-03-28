@@ -27,11 +27,10 @@ jobs:
     env:
       TF_WORKING_DIR: terraform-ecs-fargate-fullstack-app/ecs-task
 
-      # ✅ FIX REGION
       AWS_REGION: us-east-1
 
-      # ✅ TES CONFIGS
-      TF_STATE_BUCKET: amen-terraform-state
+      # ✅ FIX FINAL
+      TF_STATE_BUCKET: amen-terraform
       TF_LOCK_TABLE: terraform-lock-table
 
     steps:
